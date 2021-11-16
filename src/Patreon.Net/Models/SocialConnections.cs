@@ -18,7 +18,7 @@ namespace Patreon.Net.Models
             [JsonProperty("url")]
             public string Url { get; set; }
             [JsonProperty("user_id")]
-            public string UserId { get; set; }
+            public ulong UserId { get; set; }
         }
         [JsonProperty("discord")]
         public DiscordConnection Discord { get; set; }

@@ -57,7 +57,7 @@ namespace Patreon.Net.Models
         /// The ID of the external Discord server that is linked to this campaign. Can be <see langword="null"/>.
         /// </summary>
         [JsonProperty("discord_server_id")]
-        public string DiscordServerId { get; set; }
+        public ulong? DiscordServerId { get; set; }
         /// <summary>
         /// The ID of the Google Analytics tracker that the creator wants metrics to be sent to. Can be <see langword="null"/>.
         /// </summary>

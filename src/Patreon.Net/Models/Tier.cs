@@ -47,7 +47,7 @@ namespace Patreon.Net.Models
         /// The Discord role IDs granted by this tier. Can be <see langword="null"/>.
         /// </summary>
         [JsonProperty("discord_role_ids")]
-        public object DiscordRoleIds { get; set; }
+        public ulong[] DiscordRoleIds { get; set; }
         /// <summary>
         /// The time the tier was last modified.
         /// </summary>
