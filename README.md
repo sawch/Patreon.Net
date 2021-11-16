@@ -30,7 +30,25 @@ private async Task OnTokensRefreshedAsync(OAuthToken token)
 In case of tokens expiring while your application is offline, you'll have to manually grab them from the website again.
 
 ### Paged resources
-Certain endpoints return arrays of resources which can be paged, such as `PatreonClient.GetCampaignMembersAsync()`. As I do not yet have a Patreon campaign with enough users to return more than 1 page, I cannot say with 100% certainty that the page cursor implementation is correct at this time.
+Certain endpoints return arrays of resources which can be paged if there are too many resources to fit in a single request, such as `PatreonClient.GetCampaignMembersAsync()`. You can get the next pages by passing in the page cursor from the previous call to the corrosponding overload:
+```csharp
+var members = await GetCampaignMembersAsync(campaignId, Includes.All);
+if(members != null)
+{
+    do
+    {
+        //your work here
+        
+        string nextPageCursor = members.Meta.Pagination.Cursor?.Next;
+        if (nextPageCursor != null)
+            members = await patreonClient.GetCampaignMembersAsync(campaignId, nextPageCursor, Includes.All);
+        else
+            members = null;
+    }
+    while(members != null);
+}
+```
+This implementation is a little cumbersome and will be improved soon™.
 
 ## Implemented Endpoints
 
