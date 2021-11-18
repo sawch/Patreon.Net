@@ -1,5 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using System.Collections.Generic;
+using System.Threading;
+using Newtonsoft.Json;
 
 namespace Patreon.Net.Models
 {
@@ -46,11 +47,12 @@ namespace Patreon.Net.Models
     }
 
     /// <summary>
-    /// An array of Patreon resources that are identifiable by ID and type and may contain relationships, including additional information used for traversing pages.
+    /// An array of Patreon resources that are identifiable by ID and type and may contain relationships, including additional information used for traversing pages.<para/>
+    /// This class implements <see cref="IAsyncEnumerable{T}"/> and can be used in an 'await foreach' to traverse pages rather than accessing <see cref="Resources"/> directly.
     /// </summary>
     /// <typeparam name="TResource">The resource that is being returned, such as <see cref="Member"/> or <see cref="Campaign"/>.</typeparam>
     /// <typeparam name="TRelationships">The relationships of the resource that is being returned, such as <see cref="MemberRelationships"/> or <see cref="CampaignRelationships"/>.</typeparam>
-    public sealed class PatreonResourceArray<TResource, TRelationships> where TResource : PatreonResource<TRelationships> where TRelationships : class
+    public sealed class PatreonResourceArray<TResource, TRelationships> : IAsyncEnumerable<TResource> where TResource : PatreonResource<TRelationships> where TRelationships : class
     {
         /// <summary>
         /// The array of resources that were returned.
@@ -63,6 +65,20 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("meta")]
         public Meta Meta { get; set; }
+
+        public IAsyncEnumerator<TResource> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            return new PatreonResourceArrayAsyncEnumerator<TResource, TRelationships>(this, pageClient, requestEndpoint);
+        }
+
+        private string requestEndpoint;
+        private PatreonClient pageClient;
+
+        internal void PrepareForPaging(string endpoint, PatreonClient client)
+        {
+            requestEndpoint = endpoint;
+            pageClient = client;
+        }
     }
 
     public sealed class Meta

@@ -21,10 +21,10 @@ namespace Patreon.Net.Tests
             // Get Campaigns
             var campaigns = await client.GetCampaignsAsync(Includes.All).ConfigureAwait(false);
             string campaignId = null;
-            Console.WriteLine($"{campaigns.Resources.Length} campaigns across {campaigns.Meta.Pagination.Total} pages");
-            if (campaigns.Resources.Length > 0)
+            if (campaigns != null)
             {
-                foreach (var campaign in campaigns.Resources)
+                Console.WriteLine($"Total of {campaigns.Meta.Pagination.Total} campaigns");
+                await foreach (var campaign in campaigns)
                 {
                     Console.WriteLine($"\tID {campaign.Id}, {campaign.CreationName}, {campaign.PatronCount} patrons");
                     if (campaignId == null)
@@ -53,11 +53,10 @@ namespace Patreon.Net.Tests
             // Get Campaign Members
             var members = await client.GetCampaignMembersAsync(campaignId, Includes.All).ConfigureAwait(false);
             string memberId = null;
-            if (members.Resources.Length > 0)
+            if (members != null)
             {
-                Console.WriteLine($"{members.Resources.Length} members in campaign {campaignId} across {members.Meta.Pagination.Total} pages");
-
-                foreach(var member in members.Resources)
+                Console.WriteLine($"Total of {members.Meta.Pagination.Total} members in campaign {campaignId}");
+                await foreach(var member in members)
                 {
                     Console.WriteLine($"\tMember {member.Id}: {member.FullName} ({member.Email}) has paid {member.LifetimeSupportCents} cents total with status {member.PatronStatus}");
                     if (memberId == null)

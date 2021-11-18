@@ -103,7 +103,7 @@ namespace Patreon.Net
             return false;
         }
 
-        private async Task<T> GetAsync<T>(string requestUri, bool isRetry = false) where T : class
+        internal async Task<T> GetAsync<T>(string requestUri, bool isRetry = false) where T : class
         {
             if(!isRetry && DateTimeOffset.UtcNow >= oAuthTokenExpirationDate && !string.IsNullOrEmpty(oAuthToken.RefreshToken))
             {
@@ -197,24 +197,28 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="User"/>.</param>
         /// <returns>A user resource.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<User> GetIdentityAsync(Includes includes = Includes.None)
+        public Task<User> GetIdentityAsync(Includes includes = Includes.None)
         {
-            return await GetAsync<User>(Endpoints.Identity.GetIdentity(includes)).ConfigureAwait(false);
+            return GetAsync<User>(Endpoints.Identity.GetIdentity(includes));
         }
 
         /// <summary>
-        /// Gets the campaigns owned by the authorized user. If more than 1 total pages in the resource array's <see cref="Meta"/> property, get next pages via <see cref="GetCampaignsAsync(string, Includes)"/>.
+        /// Gets the campaigns owned by the authorized user. Use 'await foreach' on the returned object to iterate the collection of <see cref="Campaign"/> objects, requesting pages automatically.
         /// </summary>
         /// <param name="includes">The desired resources to be included on the <see cref="Campaign"/> objects in the returned array.</param>
         /// <returns>A resource array of campaigns, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
         public async Task<PatreonResourceArray<Campaign, CampaignRelationships>> GetCampaignsAsync(Includes includes = Includes.None)
         {
-            return await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Campaigns.GetCampaigns(includes)).ConfigureAwait(false);
+            string endpoint = Endpoints.Campaigns.GetCampaigns(includes);
+            var array = await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(endpoint).ConfigureAwait(false);
+            array.PrepareForPaging(endpoint, this);
+            return array;
         }
 
         /// <summary>
-        /// Gets a specific page of campaigns owned by the authorized user. Use <see cref="GetCampaignsAsync(Includes)"/> first, then this if the initial response has more than 1 page.
+        /// Gets a specific page of campaigns owned by the authorized user. Use 'await foreach' on the returned object to iterate the collection of <see cref="Campaign"/> objects, requesting the remaining pages automatically.
+        /// <para/>This function allows handling paging yourself for purposes such as rate limiting page requests.
         /// </summary>
         /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="PatreonResourceArray{T, U}"/> of <see cref="Campaign"/> objects.</param>
         /// <param name="includes">The desired resources to be included on the <see cref="Campaign"/> objects in the returned array.</param>
@@ -225,7 +229,10 @@ namespace Patreon.Net
             if (string.IsNullOrWhiteSpace(nextPageCursor))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(nextPageCursor));
 
-            return await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaigns(includes), nextPageCursor)).ConfigureAwait(false);
+            string endpoint = Endpoints.Campaigns.GetCampaigns(includes);
+            var array = await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Page(endpoint, nextPageCursor)).ConfigureAwait(false);
+            array.PrepareForPaging(endpoint, this);
+            return array;
         }
 
         /// <summary>
@@ -235,31 +242,35 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="Campaign"/>.</param>
         /// <returns>The campaign, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<Campaign> GetCampaignAsync(string campaignId, Includes includes = Includes.None)
+        public Task<Campaign> GetCampaignAsync(string campaignId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return (await GetAsync<Campaign>(Endpoints.Campaigns.GetCampaign(campaignId, includes)).ConfigureAwait(false));
+            return GetAsync<Campaign>(Endpoints.Campaigns.GetCampaign(campaignId, includes));
         }
 
         /// <summary>
-        /// Gets the members for a given campaign owned by the authorized user. If more than 1 total pages in the resource array's <see cref="Meta"/> property, get next pages via <see cref="GetCampaignMembersAsync(string, string, Includes)"/>.
+        /// Gets the members for a given campaign. Use 'await foreach' on the returned object to iterate the collection of <see cref="Member"/> objects, requesting pages automatically.
         /// </summary>
         /// <param name="campaignId">The ID of the campaign to fetch the members of.</param>
         /// <param name="includes">The desired resources to be included on the <see cref="Member"/> objects in the returned array.</param>
-        /// <returns>A resource array of members, or <see langword="null"/> if no campaign with the given <paramref name="campaignId"/> is found.</returns>
+        /// <returns>A resource array of the first page of the campaign's members, or <see langword="null"/> if no campaign with the given <paramref name="campaignId"/> is found.</returns>
         /// <exception cref="PatreonApiException"/>
         public async Task<PatreonResourceArray<Member, MemberRelationships>> GetCampaignMembersAsync(string campaignId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes)).ConfigureAwait(false);
+            string endpoint = Endpoints.Campaigns.GetCampaignMembers(campaignId, includes);
+            var array = await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(endpoint).ConfigureAwait(false);
+            array.PrepareForPaging(endpoint, this);
+            return array;
         }
 
         /// <summary>
-        /// Gets the members for a given campaign owned by the authorized user. Use <see cref="GetCampaignMembersAsync(string, Includes)"/> first, then this if the initial response has more than 1 page.
+        /// Gets a specific page of members for a given campaign. Use 'await foreach' on the returned object to iterate the collection of <see cref="Member"/> objects, requesting the remaining pages automatically.
+        /// <para/>This function allows handling paging yourself for purposes such as rate limiting page requests.
         /// </summary>
         /// <param name="campaignId">The ID of the campaign to fetch the members of.</param>
         /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="PatreonResourceArray{T, U}"/> of <see cref="Member"/> objects.</param>
@@ -271,7 +282,10 @@ namespace Patreon.Net
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes), nextPageCursor)).ConfigureAwait(false);
+            string endpoint = Endpoints.Campaigns.GetCampaignMembers(campaignId, includes);
+            var array = await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Page(endpoint, nextPageCursor)).ConfigureAwait(false);
+            array.PrepareForPaging(endpoint, this);
+            return array;
         }
 
         /// <summary>
@@ -281,12 +295,12 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="Member"/>.</param>
         /// <returns>A member resource, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<Member> GetMemberAsync(string memberId, Includes includes = Includes.None)
+        public Task<Member> GetMemberAsync(string memberId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(memberId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(memberId));
 
-            return (await GetAsync<Member>(Endpoints.Members.GetMember(memberId, includes)).ConfigureAwait(false));
+            return GetAsync<Member>(Endpoints.Members.GetMember(memberId, includes));
         }
 
         #region IDisposable Implementation
