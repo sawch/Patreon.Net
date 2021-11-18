@@ -7,22 +7,8 @@ namespace Patreon.Net.Models
     /// A Patreon user, which can be both patron and creator.
     /// </summary>
     [PatreonResource("user")]
-    public class User
+    public class User : PatreonResource<UserRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// Undocumented in the official documentation. 
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-            /// <summary>
-            /// Usually a zero or one-element array with the user's membership to the token creator's campaign, if they are a member.
-            /// </summary>
-            [JsonProperty("memberships")]
-            public ResourceArray<Member, Member.Relationships> Memberships { get; set; }
-        }
-
         /// <summary>
         /// The user's about text, which appears on their profile. Can be <see langword="null"/>.
         /// </summary>
@@ -99,5 +85,19 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("vanity")]
         public string Vanity { get; set; }
+    }
+
+    public class UserRelationships
+    {
+        /// <summary>
+        /// Undocumented in the official documentation. 
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
+        /// <summary>
+        /// Usually a zero or one-element array with the user's membership to the token creator's campaign, if they are a member.
+        /// </summary>
+        [JsonProperty("memberships")]
+        public Member[] Memberships { get; set; }
     }
 }

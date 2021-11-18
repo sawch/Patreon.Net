@@ -8,41 +8,8 @@ namespace Patreon.Net.Models
     /// The creator's page, and the top-level object for accessing lists of members, tiers, etc.
     /// </summary>
     [PatreonResource("campaign")]
-    public class Campaign
+    public class Campaign : PatreonResource<CampaignRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The campaign's benefits.
-            /// </summary>
-            [JsonProperty("benefits")]
-            public ResourceArray<Benefit, Benefit.Relationships> Benefits { get; set; }
-            /// <summary>
-            /// Undocumented.
-            /// </summary>
-            //[JsonProperty("campaign_installations")]
-            //public object[] CampaignInstallations { get; set; }
-            /// <summary>
-            /// The campaign's categories.
-            /// </summary>
-            //[JsonProperty("categories")]
-            //public object[] Categories { get; set; }
-            /// <summary>
-            /// The campaign owner.
-            /// </summary>
-            [JsonProperty("creator")]
-            public Resource<User, User.Relationships> Creator { get; set; }
-            /// <summary>
-            /// The campaign's goals.
-            /// </summary>
-            [JsonProperty("goals")]
-            public ResourceArray<Goal, Goal.Relationships> Goals { get; set; }
-            /// <summary>
-            /// The campaign's tiers.
-            /// </summary>
-            [JsonProperty("tiers")]
-            public ResourceArray<Tier, Tier.Relationships> Tiers { get; set; }
-        }
         /// <summary>
         /// The time that the creator first began the campaign creation process. See <seealso cref="PublishedAt"/> for when it was published.
         /// </summary>
@@ -178,5 +145,39 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("vanity")]
         public string Vanity { get; set; }
+    }
+
+    public class CampaignRelationships
+    {
+        /// <summary>
+        /// The campaign's benefits.
+        /// </summary>
+        [JsonProperty("benefits")]
+        public Benefit[] Benefits { get; set; }
+        /// <summary>
+        /// Undocumented.
+        /// </summary>
+        //[JsonProperty("campaign_installations")]
+        //public object[] CampaignInstallations { get; set; }
+        /// <summary>
+        /// The campaign's categories.
+        /// </summary>
+        //[JsonProperty("categories")]
+        //public object[] Categories { get; set; }
+        /// <summary>
+        /// The campaign owner.
+        /// </summary>
+        [JsonProperty("creator")]
+        public User Creator { get; set; }
+        /// <summary>
+        /// The campaign's goals.
+        /// </summary>
+        [JsonProperty("goals")]
+        public Goal[] Goals { get; set; }
+        /// <summary>
+        /// The campaign's tiers.
+        /// </summary>
+        [JsonProperty("tiers")]
+        public Tier[] Tiers { get; set; }
     }
 }

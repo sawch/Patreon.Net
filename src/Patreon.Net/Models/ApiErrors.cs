@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace Patreon.Net.Models
 {
-    internal class ApiErrors
+    internal sealed class ApiErrors
     {
         [JsonProperty("error")]
         public string Error { get; set; }
@@ -11,7 +11,7 @@ namespace Patreon.Net.Models
         public Error[] Errors { get; set; }
     }
 
-    internal class Error
+    internal sealed class Error
     {
         [JsonProperty("code")]
         public int Code { get; set; }

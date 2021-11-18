@@ -8,32 +8,8 @@ namespace Patreon.Net.Models
     /// <summary>
     /// The record of whether or not a patron has been delivered the benefit they are owed because of their member tier.
     /// </summary>
-    public class Deliverable
+    public class Deliverable : PatreonResource<DeliverableRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The Benefit the Deliverables were generated for.
-            /// </summary>
-            [JsonProperty("benefit")]
-            public Benefit Benefit { get; set; }
-            /// <summary>
-            /// The Campaign the Deliverables were generated for.
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-            /// <summary>
-            /// The member who has been granted the deliverable.
-            /// </summary>
-            [JsonProperty("member")]
-            public Member Member { get; set; }
-            /// <summary>
-            /// The user who has been granted the deliverable. This user is the same as the member user.
-            /// </summary>
-            [JsonProperty("user")]
-            public User User { get; set; }
-        }
-
         [JsonConverter(typeof(StringEnumConverter))]
         public enum DeliveryStatusValue
         {
@@ -57,5 +33,29 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("due_at")]
         public DateTimeOffset DueAt { get; set; }
+    }
+
+    public class DeliverableRelationships
+    {
+        /// <summary>
+        /// The Benefit the Deliverables were generated for.
+        /// </summary>
+        [JsonProperty("benefit")]
+        public Benefit Benefit { get; set; }
+        /// <summary>
+        /// The Campaign the Deliverables were generated for.
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
+        /// <summary>
+        /// The member who has been granted the deliverable.
+        /// </summary>
+        [JsonProperty("member")]
+        public Member Member { get; set; }
+        /// <summary>
+        /// The user who has been granted the deliverable. This user is the same as the member user.
+        /// </summary>
+        [JsonProperty("user")]
+        public User User { get; set; }
     }
 }

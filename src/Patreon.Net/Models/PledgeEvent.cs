@@ -9,27 +9,8 @@ namespace Patreon.Net.Models
     /// <summary>
     /// The record of a pledging action taken by the user, or that action's failure.
     /// </summary>
-    public class PledgeEvent
+    public class PledgeEvent : PatreonResource<PledgeEventRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The campaign being pledged to.
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-            /// <summary>
-            /// The pledging user
-            /// </summary>
-            [JsonProperty("patron")]
-            public User Patron { get; set; }
-            /// <summary>
-            /// The tier associated with this pledge event.
-            /// </summary>
-            [JsonProperty("tier")]
-            public Tier Tier { get; set; }
-        }
-
         [JsonConverter(typeof(StringEnumConverter))]
         public enum PaymentStatusValue
         {
@@ -50,7 +31,7 @@ namespace Patreon.Net.Models
         }
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public enum TypeValue
+        public enum PledgeEventType
         {
             [EnumMember(Value = "pledge_start")]
             PledgeStart,
@@ -98,6 +79,25 @@ namespace Patreon.Net.Models
         /// Event type.
         /// </summary>
         [JsonProperty("type")]
-        public TypeValue Type { get; set; }
+        public PledgeEventType EventType { get; set; }
+    }
+
+    public class PledgeEventRelationships
+    {
+        /// <summary>
+        /// The campaign being pledged to.
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
+        /// <summary>
+        /// The pledging user
+        /// </summary>
+        [JsonProperty("patron")]
+        public User Patron { get; set; }
+        /// <summary>
+        /// The tier associated with this pledge event.
+        /// </summary>
+        [JsonProperty("tier")]
+        public Tier Tier { get; set; }
     }
 }

@@ -7,22 +7,8 @@ namespace Patreon.Net.Models
     /// A patron's shipping address.
     /// </summary>
     [PatreonResource("address")]
-    public class Address
+    public class Address : PatreonResource<AddressRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The campaigns that have access to the address.
-            /// </summary>
-            [JsonProperty("campaigns")]
-            public ResourceArray<Campaign, Campaign.Relationships> Campaigns { get; set; }
-            /// <summary>
-            /// The user this address belongs to.
-            /// </summary>
-            [JsonProperty("user")]
-            public User User { get; set; }
-        }
-
         /// <summary>
         /// The full recipient name. Can be <see langword="null"/>.
         /// </summary>
@@ -68,5 +54,19 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("state")]
         public string State { get; set; }
+    }
+
+    public class AddressRelationships
+    {
+        /// <summary>
+        /// The campaigns that have access to the address.
+        /// </summary>
+        [JsonProperty("campaigns")]
+        public Campaign[] Campaigns { get; set; }
+        /// <summary>
+        /// The user this address belongs to.
+        /// </summary>
+        [JsonProperty("user")]
+        public User User { get; set; }
     }
 }

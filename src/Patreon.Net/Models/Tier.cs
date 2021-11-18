@@ -7,27 +7,8 @@ namespace Patreon.Net.Models
     /// A membership level on a campaign, which can have benefits attached to it.
     /// </summary>
     [PatreonResource("tier")]
-    public class Tier
+    public class Tier : PatreonResource<TierRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The benefits attached to the tier, which are used for generating deliverables.
-            /// </summary>
-            [JsonProperty("benefits")]
-            public ResourceArray<Benefit, Benefit.Relationships> Benefits { get; set; }
-            /// <summary>
-            /// The campaign the tier belongs to.
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-            /// <summary>
-            /// The image file associated with the tier.
-            /// </summary>
-            [JsonProperty("tier_image")]
-            public Media TierImage { get; set; }
-        }
-
         /// <summary>
         /// Monetary amount associated with this tier (in U.S. cents).
         /// </summary>
@@ -108,5 +89,24 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("user_limit")]
         public int? UserLimit { get; set; }
+    }
+
+    public class TierRelationships
+    {
+        /// <summary>
+        /// The benefits attached to the tier, which are used for generating deliverables.
+        /// </summary>
+        [JsonProperty("benefits")]
+        public Benefit[] Benefits { get; set; }
+        /// <summary>
+        /// The campaign the tier belongs to.
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
+        /// <summary>
+        /// The image file associated with the tier.
+        /// </summary>
+        [JsonProperty("tier_image")]
+        public Media TierImage { get; set; }
     }
 }
