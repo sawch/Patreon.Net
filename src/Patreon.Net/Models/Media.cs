@@ -6,7 +6,7 @@ namespace Patreon.Net.Models
     /// <summary>
     /// A file uploaded to patreon.com, usually an image.
     /// </summary>
-    public class Media
+    public class Media : PatreonResource
     {
         /// <summary>
         /// When the file was created.

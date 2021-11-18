@@ -82,9 +82,13 @@ namespace Patreon.Net
                     var attribute = attributes[j] as JsonPropertyAttribute;
                     if(attribute != null)
                     {
+                        string propertyName = attribute.PropertyName;
+                        if (propertyName == "id" || propertyName == "type" || propertyName == "relationships")
+                            continue;
+
                         if (i > 0)
                             stringBuilder.Append(',');
-                        stringBuilder.Append(attribute.PropertyName);
+                        stringBuilder.Append(propertyName);
                         break;
                     }
                 }

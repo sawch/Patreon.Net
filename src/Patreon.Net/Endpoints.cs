@@ -44,7 +44,7 @@
         /// Appends an endpoint URL with a page cursor.
         /// </summary>
         /// <param name="url">An endpoint URL, like <see cref="Campaigns.AllCampaignFields"/></param>
-        /// <param name="pageCursor">The next page cursor, found in <see cref="Models.ResourceArray{T}.Meta"/>.</param>
+        /// <param name="pageCursor">The next page cursor, found in <see cref="Models.PatreonResourceArray{T}.Meta"/>.</param>
         internal static string Page(string url, string pageCursor) => url + "&page%5Bcursor%5D=" + pageCursor;
     }
 }

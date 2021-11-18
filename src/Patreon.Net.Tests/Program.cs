@@ -5,27 +5,28 @@ namespace Patreon.Net.Tests
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static async Task Main()
         {
             string accessToken = "";
             string refreshToken = "";
             string clientId = "";
             using var client = new PatreonClient(accessToken, refreshToken, clientId);
+
             Console.WriteLine($"Patreon.Net {PatreonClient.Version}\n\n");
 
             // Get Identity
             var user = await client.GetIdentityAsync(Includes.All).ConfigureAwait(false);
-            Console.WriteLine($"Access token identity: {user.Attributes.FullName} (ID {user.Id})"); Console.WriteLine("\n\n");
+            Console.WriteLine($"Access token identity: {user.FullName} (ID {user.Id})"); Console.WriteLine("\n\n");
 
             // Get Campaigns
             var campaigns = await client.GetCampaignsAsync(Includes.All).ConfigureAwait(false);
             string campaignId = null;
-            Console.WriteLine($"{campaigns.Data.Length} campaigns across {campaigns.Meta.Pagination.Total} pages");
-            if (campaigns.Data.Length > 0)
+            Console.WriteLine($"{campaigns.Resources.Length} campaigns across {campaigns.Meta.Pagination.Total} pages");
+            if (campaigns.Resources.Length > 0)
             {
-                foreach (var campaign in campaigns.Data)
+                foreach (var campaign in campaigns.Resources)
                 {
-                    Console.WriteLine($"\tID {campaign.Id}, {campaign.Attributes.CreationName}, {campaign.Attributes.PatronCount} patrons");
+                    Console.WriteLine($"\tID {campaign.Id}, {campaign.CreationName}, {campaign.PatronCount} patrons");
                     if (campaignId == null)
                         campaignId = campaign.Id;
                 }
@@ -38,29 +39,27 @@ namespace Patreon.Net.Tests
             }
 
             // Get Campaign by ID
-            var singleCampaign = (await client.GetCampaignAsync(campaignId, Includes.All).ConfigureAwait(false));
-            Console.WriteLine($"Campaign created at {singleCampaign.Attributes.CreatedAt}, {singleCampaign.Attributes.PledgeUrl}, created by {singleCampaign.Relationships.Creator.Data.Attributes.FullName}");
+            var singleCampaign = await client.GetCampaignAsync(campaignId, Includes.All).ConfigureAwait(false);
+            Console.WriteLine($"Campaign {singleCampaign.PledgeUrl}: created at {singleCampaign.CreatedAt}, created by {singleCampaign.Relationships.Creator.FullName}");
             var tiers = singleCampaign.Relationships.Tiers;
-            if (tiers != null && tiers.Data.Length > 0)
+            if (tiers != null && tiers.Length > 0)
             {
-                var tierData = tiers.Data;
-                for (int i = 0; i < tierData.Length; i++)
-                {
-                    var tier = tierData[i];
-                    Console.WriteLine($"\tTier {tier.Id}, titled {tier.Attributes.Title}, worth {tier.Attributes.AmountCents} cents, has {tier.Attributes.PatronCount} patrons");
-                }
+                foreach (var tier in tiers)
+                    Console.WriteLine($"\tTier {tier.Id}: titled {tier.Title}, worth {tier.AmountCents} cents, has {tier.PatronCount} patrons");
+                
+                Console.WriteLine("\n\n");
             }
-            Console.WriteLine("\n\n");
 
             // Get Campaign Members
             var members = await client.GetCampaignMembersAsync(campaignId, Includes.All).ConfigureAwait(false);
             string memberId = null;
-            if (members.Data.Length > 0)
+            if (members.Resources.Length > 0)
             {
-                Console.WriteLine($"{members.Data.Length} members in campaign {campaignId} across {members.Meta.Pagination.Total} pages");
-                foreach (var member in members.Data)
+                Console.WriteLine($"{members.Resources.Length} members in campaign {campaignId} across {members.Meta.Pagination.Total} pages");
+
+                foreach(var member in members.Resources)
                 {
-                    Console.WriteLine($"\tID {member.Id}, {member.Attributes.FullName}, {member.Attributes.Email}, {member.Attributes.LifetimeSupportCents} paid, {member.Attributes.PatronStatus}");
+                    Console.WriteLine($"\tMember {member.Id}: {member.FullName} ({member.Email}) has paid {member.LifetimeSupportCents} cents total with status {member.PatronStatus}");
                     if (memberId == null)
                         memberId = member.Id;
                 }
@@ -74,23 +73,15 @@ namespace Patreon.Net.Tests
 
             // Get Member by ID
             var singleMember = await client.GetMemberAsync(memberId, Includes.All).ConfigureAwait(false);
-            Console.WriteLine($"Got single member {singleMember.Attributes.FullName}, {singleMember.Attributes.PatronStatus} has contributed {singleMember.Attributes.CampaignLifetimeSupportCents} cents total, entitled to {singleMember.Relationships.Tiers?.Data.Length.ToString() ?? "null"} tiers");
+            Console.WriteLine($"Member {singleMember.Id}: {singleMember.FullName} ({singleMember.PatronStatus}) has paid {singleMember.CampaignLifetimeSupportCents} cents total, entitled to {singleMember.Relationships.Tiers?.Length.ToString() ?? "null"} tier(s)");
             var entitledTiers = singleMember.Relationships.Tiers;
             if (entitledTiers != null)
             {
-                var data = entitledTiers.Data;
-                for(int i=0; i<data.Length; i++)
-                {
-                    var tier = data[i];
-                    Console.WriteLine($"Tier {tier.Id}");
-                    Console.WriteLine($"{tier.Attributes.AmountCents} cents, titled {tier.Attributes.Title}");
-                }
+                foreach(var tier in entitledTiers)
+                    Console.WriteLine($"\tTier {tier.Id}: Titled {tier.Title} worth {tier.AmountCents} cents");
             }
             else
-            {
-                Console.WriteLine("No tiers");
-                return;
-            }
+                Console.WriteLine("\tNo tiers");
         }
     }
 }

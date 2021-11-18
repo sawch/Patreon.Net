@@ -7,16 +7,8 @@ namespace Patreon.Net.Models
     /// A funding goal in USD set by a creator on a campaign.
     /// </summary>
     [PatreonResource("goal")]
-    public class Goal
+    public class Goal : PatreonResource<GoalRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The campaign trying to reach the goal
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-        }
         /// <summary>
         /// Goal amount in USD cents.
         /// </summary>
@@ -47,5 +39,14 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("title")]
         public string Title { get; set; }
+    }
+
+    public class GoalRelationships
+    {
+        /// <summary>
+        /// The campaign trying to reach the goal
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
     }
 }

@@ -72,96 +72,7 @@ namespace Patreon.Net
             headers.UserAgent.Add(new ProductInfoHeaderValue("Patreon.Net", Version));
         }
 
-        private async Task<T> GetAsync<T>(string requestUri, bool isRetryFromExpiredToken = false) where T : class
-        {
-            bool refreshedTokenFromExpiry = false;
-            if(!isRetryFromExpiredToken && DateTimeOffset.UtcNow >= oAuthTokenExpirationDate && !string.IsNullOrEmpty(oAuthToken.RefreshToken))
-            {
-                await RefreshTokenAsync().ConfigureAwait(false);
-                refreshedTokenFromExpiry = true;
-            }
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
-            var statusCodeNumber = (int)response.StatusCode;
-            if (statusCodeNumber >= 200 && statusCodeNumber < 300)
-            {
-                var httpContent = response.Content;
-                if (httpContent != null)
-                {
-                    string content = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
-                    if (content != null && content.Length > 0)
-                    {
-                        var jObject = JObject.Parse(content);
-                        JsonPostprocessor.Process(jObject);
-                        return jObject.ToObject<T>(jsonSerializer);
-                    }
-                }
-                throw new PatreonApiException($"Patreon returned an empty response content (\"{requestUri}\")");
-            }
-            else
-            {
-                switch (statusCodeNumber)
-                {
-                    case 401:
-                        {
-                            if (refreshedTokenFromExpiry || isRetryFromExpiredToken)
-                                throw new PatreonApiException("Unauthorized: Please verify your have supplied a valid token.");
-
-                            await RefreshTokenAsync().ConfigureAwait(false);
-                            return await GetAsync<T>(requestUri, true).ConfigureAwait(false);
-                        }
-                    case 404: { return null; }
-                    case 410: { throw new PatreonApiException("Gone -- The resource requested has been removed from our servers."); }
-                    case 429: { throw new PatreonApiException("Too Many Requests -- Slow down!"); }
-                    case 503: { throw new PatreonApiException("Patreon is temporarily offline for maintenance. Please try again later."); }
-                    default:
-                        {
-                            var httpContent = response.Content;
-                            if (httpContent != null)
-                            {
-                                string content = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
-                                if (content != null && content.Length > 0)
-                                {
-                                    try
-                                    {
-                                        var apiErrors = JObject.Parse(content).ToObject<ApiErrors>(jsonSerializer);
-                                        if (apiErrors.Error != null)
-                                        {
-                                            throw new PatreonApiException($"Patreon returned an error: {apiErrors.Error}");
-                                        }
-                                        else if (apiErrors.Errors != null)
-                                        {
-                                            var errors = apiErrors.Errors;
-                                            int totalLength = 0;
-                                            for (int i = 0; i < errors.Length; i++)
-                                            {
-                                                var error = errors[i];
-                                                totalLength += error.Status.Length + error.Detail.Length + 1; // + space
-                                            }
-                                            if (totalLength > 0)
-                                            {
-                                                StringBuilder errorMessages = new(totalLength);
-                                                for (int i = 0; i < errors.Length; i++)
-                                                {
-                                                    var error = errors[i];
-                                                    errorMessages.Append(error.Status); errorMessages.Append(' ');
-                                                    errorMessages.Append(error.Detail);
-                                                }
-                                                throw new PatreonApiException($"Patreon returned error(s): {errorMessages}");
-                                            }
-                                        }
-                                    }
-                                    catch (JsonReaderException) { throw new PatreonApiException($"Patreon returned an unsuccessful status code: {response.StatusCode} ({statusCodeNumber}), {content}"); }
-                                }
-                            }
-                            throw new PatreonApiException($"Patreon returned an unsuccessful status code: {response.StatusCode} ({statusCodeNumber})");
-                        }
-                }
-            }
-        }
-
-        private async Task RefreshTokenAsync()
+        private async Task<bool> RefreshTokenAsync()
         {
             string requestUri = Endpoints.Token.RefreshToken(oAuthToken.RefreshToken, clientId);
             using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
@@ -185,61 +96,98 @@ namespace Patreon.Net
 
                         if (TokensRefreshedAsync != null)
                             _ = TokensRefreshedAsync(newToken);
-                        return;
+                        return true;
                     }
                 }
-                throw new PatreonApiException($"Patreon returned an empty response content when attempting to refresh OAuth token, with a status code {response.StatusCode} ({statusCodeNumber}).");
             }
-            else
+            return false;
+        }
+
+        private async Task<T> GetAsync<T>(string requestUri, bool isRetry = false) where T : class
+        {
+            if(!isRetry && DateTimeOffset.UtcNow >= oAuthTokenExpirationDate && !string.IsNullOrEmpty(oAuthToken.RefreshToken))
             {
-                switch (statusCodeNumber)
+                if(!await RefreshTokenAsync().ConfigureAwait(false))
+                    throw new PatreonApiException("Failed to refresh OAuth token. Please verify that you have supplied a valid token.");
+                isRetry = true; // Consider this a retry if we just refreshed the token, to avoid attempting refresh twice
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead).ConfigureAwait(false);
+            var statusCodeNumber = (int)response.StatusCode;
+            if (statusCodeNumber >= 200 && statusCodeNumber < 300)
+            {
+                var httpContent = response.Content;
+                if (httpContent != null)
                 {
-                    case 410: { throw new PatreonApiException("Gone -- The resource requested has been removed from our servers."); }
-                    case 429: { throw new PatreonApiException("Too Many Requests -- Slow down!"); }
-                    case 503: { throw new PatreonApiException("Patreon is temporarily offline for maintenance. Please try again later."); }
-                    default:
+                    string content = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
+                    if (content != null && content.Length > 0)
+                    {
+                        if (JsonPostprocessor.Process(JObject.Parse(content), out JToken dataToken))
+                            return dataToken.ToObject<T>(jsonSerializer);
+                    }
+                }
+                throw new PatreonApiException($"Patreon returned an indecipherable response format (\"{requestUri}\")");
+            }
+            else if (!isRetry && await ShouldAttemptRetryOrThrowAsync(response).ConfigureAwait(false))
+            {
+                return await GetAsync<T>(requestUri, true).ConfigureAwait(false);
+            }
+            return null;
+        }
+
+        private async Task<bool> ShouldAttemptRetryOrThrowAsync(HttpResponseMessage response)
+        {
+            int statusCodeNumber = (int)response.StatusCode;
+            switch (statusCodeNumber)
+            {
+                case 401: { return await RefreshTokenAsync().ConfigureAwait(false); }
+                case 404: { return false; }
+                case 410: { throw new PatreonApiException("Gone -- The resource requested has been removed from our servers."); }
+                case 429: { throw new PatreonApiException("Too Many Requests -- Slow down!"); }
+                case 503: { throw new PatreonApiException("Patreon is temporarily offline for maintenance. Please try again later."); }
+                default:
+                    {
+                        var httpContent = response.Content;
+                        if (httpContent != null)
                         {
-                            var httpContent = response.Content;
-                            if (httpContent != null)
+                            string content = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
+                            if (content != null && content.Length > 0)
                             {
-                                string content = await httpContent.ReadAsStringAsync().ConfigureAwait(false);
-                                if (content != null && content.Length > 0)
+                                try
                                 {
-                                    try
+                                    var apiErrors = JObject.Parse(content).ToObject<ApiErrors>(jsonSerializer);
+                                    if (apiErrors.Error != null)
                                     {
-                                        var apiErrors = JObject.Parse(content).ToObject<ApiErrors>(jsonSerializer);
-                                        if (apiErrors.Error != null)
+                                        throw new PatreonApiException($"Patreon returned an error: {apiErrors.Error}");
+                                    }
+                                    else if (apiErrors.Errors != null)
+                                    {
+                                        var errors = apiErrors.Errors;
+                                        int totalLength = 0;
+                                        for (int i = 0; i < errors.Length; i++)
                                         {
-                                            throw new PatreonApiException($"Patreon returned an error when attempting to refresh OAuth token: {apiErrors.Error}");
+                                            var error = errors[i];
+                                            totalLength += error.Status.Length + error.Detail.Length + 1; // + space
                                         }
-                                        else if (apiErrors.Errors != null)
+                                        if (totalLength > 0)
                                         {
-                                            var errors = apiErrors.Errors;
-                                            int totalLength = 0;
+                                            StringBuilder errorMessages = new(totalLength);
                                             for (int i = 0; i < errors.Length; i++)
                                             {
                                                 var error = errors[i];
-                                                totalLength += error.Status.Length + error.Detail.Length + 1; // + space
+                                                errorMessages.Append(error.Status); errorMessages.Append(' ');
+                                                errorMessages.Append(error.Detail); errorMessages.Append('\n');
                                             }
-                                            if (totalLength > 0)
-                                            {
-                                                StringBuilder errorMessages = new(totalLength);
-                                                for (int i = 0; i < errors.Length; i++)
-                                                {
-                                                    var error = errors[i];
-                                                    errorMessages.Append(error.Status); errorMessages.Append(' ');
-                                                    errorMessages.Append(error.Detail);
-                                                }
-                                                throw new PatreonApiException($"Patreon returned error(s) when attempting to refresh OAuth token: {errorMessages}");
-                                            }
+                                            throw new PatreonApiException($"Patreon returned error(s): {errorMessages}");
                                         }
                                     }
-                                    catch (JsonReaderException) { }
                                 }
+                                catch (JsonReaderException) { throw new PatreonApiException($"Patreon returned an unsuccessful status code: {response.StatusCode} ({statusCodeNumber}), {content}"); }
                             }
-                            throw new PatreonApiException($"Patreon returned an unsuccessful status code when attempting to refresh OAuth token: {response.StatusCode} ({statusCodeNumber})");
                         }
-                }
+                        throw new PatreonApiException($"Patreon returned an unsuccessful status code: {response.StatusCode} ({statusCodeNumber})");
+                    }
             }
         }
 
@@ -249,9 +197,9 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="User"/>.</param>
         /// <returns>A user resource.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceData<User, User.Relationships>> GetIdentityAsync(Includes includes = Includes.None)
+        public async Task<User> GetIdentityAsync(Includes includes = Includes.None)
         {
-            return (await GetAsync<Resource<User, User.Relationships>>(Endpoints.Identity.GetIdentity(includes)).ConfigureAwait(false))?.Data;
+            return await GetAsync<User>(Endpoints.Identity.GetIdentity(includes)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -260,24 +208,24 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the <see cref="Campaign"/> objects in the returned array.</param>
         /// <returns>A resource array of campaigns, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceArray<Campaign, Campaign.Relationships>> GetCampaignsAsync(Includes includes = Includes.None)
+        public async Task<PatreonResourceArray<Campaign, CampaignRelationships>> GetCampaignsAsync(Includes includes = Includes.None)
         {
-            return await GetAsync<ResourceArray<Campaign, Campaign.Relationships>>(Endpoints.Campaigns.GetCampaigns(includes)).ConfigureAwait(false);
+            return await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Campaigns.GetCampaigns(includes)).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets a specific page of campaigns owned by the authorized user. Use <see cref="GetCampaignsAsync(Includes)"/> first, then this if the initial response has more than 1 page.
         /// </summary>
-        /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="ResourceArray{T, U}"/> of <see cref="Campaign"/> objects.</param>
+        /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="PatreonResourceArray{T, U}"/> of <see cref="Campaign"/> objects.</param>
         /// <param name="includes">The desired resources to be included on the <see cref="Campaign"/> objects in the returned array.</param>
         /// <returns>A resource array of campaigns, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceArray<Campaign, Campaign.Relationships>> GetCampaignsAsync(string nextPageCursor, Includes includes = Includes.None)
+        public async Task<PatreonResourceArray<Campaign, CampaignRelationships>> GetCampaignsAsync(string nextPageCursor, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(nextPageCursor))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(nextPageCursor));
 
-            return await GetAsync<ResourceArray<Campaign, Campaign.Relationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaigns(includes), nextPageCursor)).ConfigureAwait(false);
+            return await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaigns(includes), nextPageCursor)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -287,12 +235,12 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="Campaign"/>.</param>
         /// <returns>The campaign, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceData<Campaign, Campaign.Relationships>> GetCampaignAsync(string campaignId, Includes includes = Includes.None)
+        public async Task<Campaign> GetCampaignAsync(string campaignId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return (await GetAsync<Resource<Campaign, Campaign.Relationships>>(Endpoints.Campaigns.GetCampaign(campaignId, includes)).ConfigureAwait(false))?.Data;
+            return (await GetAsync<Campaign>(Endpoints.Campaigns.GetCampaign(campaignId, includes)).ConfigureAwait(false));
         }
 
         /// <summary>
@@ -302,28 +250,28 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the <see cref="Member"/> objects in the returned array.</param>
         /// <returns>A resource array of members, or <see langword="null"/> if no campaign with the given <paramref name="campaignId"/> is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceArray<Member, Member.Relationships>> GetCampaignMembersAsync(string campaignId, Includes includes = Includes.None)
+        public async Task<PatreonResourceArray<Member, MemberRelationships>> GetCampaignMembersAsync(string campaignId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return await GetAsync<ResourceArray<Member, Member.Relationships>>(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes)).ConfigureAwait(false);
+            return await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes)).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the members for a given campaign owned by the authorized user. Use <see cref="GetCampaignMembersAsync(string, Includes)"/> first, then this if the initial response has more than 1 page.
         /// </summary>
         /// <param name="campaignId">The ID of the campaign to fetch the members of.</param>
-        /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="ResourceArray{T, U}"/> of <see cref="Member"/> objects.</param>
+        /// <param name="nextPageCursor">The page cursor found in the <see cref="Meta.Pagination"/> property found on the previous <see cref="PatreonResourceArray{T, U}"/> of <see cref="Member"/> objects.</param>
         /// <param name="includes">The desired resources to be included on the <see cref="Member"/> objects in the returned array.</param>
         /// <returns>A resource array of members, or <see langword="null"/> if no campaign with the given <paramref name="campaignId"/> is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceArray<Member, Member.Relationships>> GetCampaignMembersAsync(string campaignId, string nextPageCursor, Includes includes = Includes.None)
+        public async Task<PatreonResourceArray<Member, MemberRelationships>> GetCampaignMembersAsync(string campaignId, string nextPageCursor, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(campaignId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(campaignId));
 
-            return await GetAsync<ResourceArray<Member, Member.Relationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes), nextPageCursor)).ConfigureAwait(false);
+            return await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Page(Endpoints.Campaigns.GetCampaignMembers(campaignId, includes), nextPageCursor)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -333,12 +281,12 @@ namespace Patreon.Net
         /// <param name="includes">The desired resources to be included on the returned <see cref="Member"/>.</param>
         /// <returns>A member resource, or <see langword="null"/> if none is found.</returns>
         /// <exception cref="PatreonApiException"/>
-        public async Task<ResourceData<Member, Member.Relationships>> GetMemberAsync(string memberId, Includes includes = Includes.None)
+        public async Task<Member> GetMemberAsync(string memberId, Includes includes = Includes.None)
         {
             if (string.IsNullOrWhiteSpace(memberId))
                 throw new ArgumentException("Value cannot be null, empty or whitespace.", nameof(memberId));
 
-            return (await GetAsync<Resource<Member, Member.Relationships>>(Endpoints.Members.GetMember(memberId, includes)).ConfigureAwait(false))?.Data;
+            return (await GetAsync<Member>(Endpoints.Members.GetMember(memberId, includes)).ConfigureAwait(false));
         }
 
         #region IDisposable Implementation

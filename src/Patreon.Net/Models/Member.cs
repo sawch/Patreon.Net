@@ -10,37 +10,8 @@ namespace Patreon.Net.Models
     /// The record of a user's membership to a campaign.
     /// </summary>
     [PatreonResource("member")]
-    public class Member
+    public class Member : PatreonResource<MemberRelationships>
     {
-        public class Relationships
-        {
-            /// <summary>
-            /// The member's shipping address that they entered for the campaign.
-            /// </summary>
-            [JsonProperty("address")]
-            public Address Address { get; set; }
-            /// <summary>
-            /// The campaign that the membership is for.
-            /// </summary>
-            [JsonProperty("campaign")]
-            public Campaign Campaign { get; set; }
-            /// <summary>
-            /// The tiers that the member is entitled to. This includes a current pledge, or payment that covers the current payment period.
-            /// </summary>
-            [JsonProperty("currently_entitled_tiers")]
-            public ResourceArray<Tier, Tier.Relationships> Tiers { get; set; }
-            /// <summary>
-            /// The pledge history of the member.
-            /// </summary>
-            [JsonProperty("pledge_history")]
-            public ResourceArray<PledgeEvent, PledgeEvent.Relationships> PledgeHistory { get; set; }
-            /// <summary>
-            /// The user who is pledging to the campaign.
-            /// </summary>
-            [JsonProperty("user")]
-            public User User { get; set; }
-        }
-
         [JsonConverter(typeof(StringEnumConverter))]
         public enum PatronStatusValue
         {
@@ -143,5 +114,34 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("will_pay_amount_cents")]
         public int WillPayAmountCents { get; set; }
+    }
+
+    public class MemberRelationships
+    {
+        /// <summary>
+        /// The member's shipping address that they entered for the campaign.
+        /// </summary>
+        [JsonProperty("address")]
+        public Address Address { get; set; }
+        /// <summary>
+        /// The campaign that the membership is for.
+        /// </summary>
+        [JsonProperty("campaign")]
+        public Campaign Campaign { get; set; }
+        /// <summary>
+        /// The tiers that the member is entitled to. This includes a current pledge, or payment that covers the current payment period.
+        /// </summary>
+        [JsonProperty("currently_entitled_tiers")]
+        public Tier[] Tiers { get; set; }
+        /// <summary>
+        /// The pledge history of the member.
+        /// </summary>
+        [JsonProperty("pledge_history")]
+        public PledgeEvent[] PledgeHistory { get; set; }
+        /// <summary>
+        /// The user who is pledging to the campaign.
+        /// </summary>
+        [JsonProperty("user")]
+        public User User { get; set; }
     }
 }
