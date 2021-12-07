@@ -1,4 +1,6 @@
 ## Patreon.Net
+[![Nuget](https://img.shields.io/nuget/v/Patreon.Net?color=%23ff424d)](https://www.nuget.org/packages/Patreon.Net)
+
 A .NET implementation of the Patreon V2 API, targeting **.NET 5** and **.NET 6**.
 
 ## Usage
@@ -8,14 +10,15 @@ A .NET implementation of the Patreon V2 API, targeting **.NET 5** and **.NET 6**
 var client = new PatreonClient("access token", "refresh token", "client id");
 
 var campaigns = await client.GetCampaignsAsync(Includes.All);
-foreach(var campaign in campaigns.Data)
-    Console.WriteLine($"{campaign.Id} has {campaign.Attributes.PatronCount} patrons");
+await foreach(var campaign in campaigns)
+    Console.WriteLine($"{campaign.CreationName} has {campaign.PatronCount} patrons");
 
 client.Dispose();
 ```
 
 ## Notes
-This implementation isn't fully complete yet but is in a working state (see implemented endpoints below).
+This implementation doesn't cover 100% of the API at this time but is in a fully working state (see implemented endpoints below).
+Basically, everything but webhooks and getting creator's posts is fully implemented.
 
 ### Token refreshing
 Patreon.Net automatically handles token refreshing and exposes an event containing the newly generated access and refresh tokens to store for later, in case you need to restart your application:
@@ -30,9 +33,18 @@ private async Task OnTokensRefreshedAsync(OAuthToken token)
 In case of tokens expiring while your application is offline, you'll have to manually grab them from the website again.
 
 ### Paged resources
-Certain endpoints return arrays of resources which can be paged if there are too many resources to fit in a single request, such as `PatreonClient.GetCampaignMembersAsync()`. You can get the next pages by passing in the page cursor from the previous call to the corrosponding overload:
+Certain endpoints return arrays of resources which can be paged if there are too many resources to fit in a single request, such as `PatreonClient.GetCampaignMembersAsync()`. You can iterate across all pages by using an `await foreach` on the returned resource arrays:
 ```csharp
-var members = await GetCampaignMembersAsync(campaignId, Includes.All);
+var members = await GetCampaignMembersAsync(campaignId);
+if(members != null)
+{
+    await foreach(var member in members)
+        // your work here
+}
+```
+If you want to manually handle requesting the next pages (for rate limiting requests, for example), you can use the overloads on `PatreonClient` that take page cursors found in the `Meta` property:
+```csharp
+var members = await GetCampaignMembersAsync(campaignId);
 if(members != null)
 {
     do
@@ -41,14 +53,13 @@ if(members != null)
         
         string nextPageCursor = members.Meta.Pagination.Cursor?.Next;
         if (nextPageCursor != null)
-            members = await patreonClient.GetCampaignMembersAsync(campaignId, nextPageCursor, Includes.All);
+            members = await patreonClient.GetCampaignMembersAsync(campaignId, nextPageCursor);
         else
             members = null;
     }
     while(members != null);
 }
 ```
-This implementation is a little cumbersome and will be improved soon™.
 
 ## Implemented Endpoints
 
