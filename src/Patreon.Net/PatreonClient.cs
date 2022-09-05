@@ -141,7 +141,13 @@ namespace Patreon.Net
             int statusCodeNumber = (int)response.StatusCode;
             switch (statusCodeNumber)
             {
-                case 401: { return await RefreshTokenAsync().ConfigureAwait(false); }
+                case 401: 
+                    {
+                        if (await RefreshTokenAsync().ConfigureAwait(false))
+                            return true;
+
+                        throw new PatreonApiException("Unauthorized -- Authentication failed (bad API key, invalid OAuth token, incorrect scopes, etc.)");
+                    }
                 case 404: { return false; }
                 case 410: { throw new PatreonApiException("Gone -- The resource requested has been removed from our servers."); }
                 case 429: { throw new PatreonApiException("Too Many Requests -- Slow down!"); }
