@@ -212,7 +212,7 @@ namespace Patreon.Net
         {
             string endpoint = Endpoints.Campaigns.GetCampaigns(includes);
             var array = await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(endpoint).ConfigureAwait(false);
-            array.PrepareForPaging(endpoint, this);
+            array?.PrepareForPaging(endpoint, this);
             return array;
         }
 
@@ -231,7 +231,7 @@ namespace Patreon.Net
 
             string endpoint = Endpoints.Campaigns.GetCampaigns(includes);
             var array = await GetAsync<PatreonResourceArray<Campaign, CampaignRelationships>>(Endpoints.Page(endpoint, nextPageCursor)).ConfigureAwait(false);
-            array.PrepareForPaging(endpoint, this);
+            array?.PrepareForPaging(endpoint, this);
             return array;
         }
 
@@ -264,7 +264,7 @@ namespace Patreon.Net
 
             string endpoint = Endpoints.Campaigns.GetCampaignMembers(campaignId, includes);
             var array = await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(endpoint).ConfigureAwait(false);
-            array.PrepareForPaging(endpoint, this);
+            array?.PrepareForPaging(endpoint, this);
             return array;
         }
 
@@ -284,7 +284,7 @@ namespace Patreon.Net
 
             string endpoint = Endpoints.Campaigns.GetCampaignMembers(campaignId, includes);
             var array = await GetAsync<PatreonResourceArray<Member, MemberRelationships>>(Endpoints.Page(endpoint, nextPageCursor)).ConfigureAwait(false);
-            array.PrepareForPaging(endpoint, this);
+            array?.PrepareForPaging(endpoint, this);
             return array;
         }
 
