@@ -35,7 +35,7 @@ In case of tokens expiring while your application is offline, you'll have to man
 ### Paged resources
 Certain endpoints return arrays of resources which can be paged if there are too many resources to fit in a single request, such as `PatreonClient.GetCampaignMembersAsync()`. You can iterate across all pages by using an `await foreach` on the returned resource arrays:
 ```csharp
-var members = await GetCampaignMembersAsync(campaignId);
+var members = await client.GetCampaignMembersAsync(campaignId);
 if(members != null)
 {
     await foreach(var member in members)
@@ -44,7 +44,7 @@ if(members != null)
 ```
 If you want to manually handle requesting the next pages (for rate limiting requests, for example), you can use the overloads on `PatreonClient` that take page cursors found in the `Meta` property:
 ```csharp
-var members = await GetCampaignMembersAsync(campaignId);
+var members = await client.GetCampaignMembersAsync(campaignId);
 if(members != null)
 {
     do
@@ -53,7 +53,7 @@ if(members != null)
         
         string nextPageCursor = members.Meta.Pagination.Cursor?.Next;
         if (nextPageCursor != null)
-            members = await patreonClient.GetCampaignMembersAsync(campaignId, nextPageCursor);
+            members = await client.GetCampaignMembersAsync(campaignId, nextPageCursor);
         else
             members = null;
     }
