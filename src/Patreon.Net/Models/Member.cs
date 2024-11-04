@@ -68,7 +68,12 @@ namespace Patreon.Net.Models
         /// The user is not a pledging patron but has subscribed to updates about public posts.
         /// </summary>
         [JsonProperty("is_follower")]
-        public string IsFollower { get; set; }
+        public string IsFollower { get; set; }      
+        /// <summary>
+        /// The free trial period status of user patron
+        /// </summary>
+        [JsonProperty("is_free_trial")]
+        public string IsFreeTrial { get; set; }
         /// <summary>
         /// The time of last attempted charge. Can be <see langword="null"/> if never charged.
         /// </summary>
