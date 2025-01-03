@@ -13,7 +13,7 @@ namespace Patreon.Net.Models
         /// Monetary amount associated with this tier (in U.S. cents).
         /// </summary>
         [JsonProperty("amount_cents")]
-        public string AmountCents { get; set; }
+        public int AmountCents { get; set; }
         /// <summary>
         /// The time this tier was created.
         /// </summary>

@@ -40,8 +40,14 @@ namespace Patreon.Net.Models
             Refunded,
             [EnumMember(Value = "Fraud")]
             Fraud,
+            [EnumMember(Value = "Refunded by Patreon")]
+            RefundedByPatreon,
             [EnumMember(Value = "Other")]
-            Other
+            Other,
+            [EnumMember(Value = "Partially Refunded")]
+            PartiallyRefunded,
+            [EnumMember(Value = "Free Trial")]
+            FreeTrial
         }
 
         /// <summary>
@@ -67,8 +73,18 @@ namespace Patreon.Net.Models
         /// <summary>
         /// The user is not a pledging patron but has subscribed to updates about public posts.
         /// </summary>
-        [JsonProperty("is_follower")]
-        public string IsFollower { get; set; }
+        [JsonProperty("is_follower"), Obsolete("This will always be false, following has been replaced by free membership.")]
+        public bool IsFollower { get; set; }
+        /// <summary>
+        /// Whether the user is in a free trial period.
+        /// </summary>
+        [JsonProperty("is_free_trial")]
+        public bool IsFreeTrial { get; set; }
+        /// <summary>
+        /// Whether the user's membership is from a free gift.
+        /// </summary>
+        [JsonProperty("is_gifted")]
+        public bool IsGifted { get; set; }
         /// <summary>
         /// The time of last attempted charge. Can be <see langword="null"/> if never charged.
         /// </summary>
