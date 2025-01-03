@@ -172,7 +172,7 @@ namespace Patreon.Net.Models
         /// <summary>
         /// The campaign's goals.
         /// </summary>
-        [JsonProperty("goals")]
+        [JsonProperty("goals"), Obsolete("[DEPRECATED!] The campaign's goals. Will always be empty.")]
         public Goal[] Goals { get; set; }
         /// <summary>
         /// The campaign's tiers.

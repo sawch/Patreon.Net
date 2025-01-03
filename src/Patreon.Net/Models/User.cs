@@ -35,6 +35,11 @@ namespace Patreon.Net.Models
         [JsonProperty("first_name")]
         public string FirstName { get; set; }
         /// <summary>
+        /// Last name. Can be <see langword="null"/>.
+        /// </summary>
+        [JsonProperty("last_name")]
+        public string LastName { get; set; }
+        /// <summary>
         /// Combined first and last name.
         /// </summary>
         [JsonProperty("full_name")]
@@ -54,11 +59,6 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("is_email_verified")]
         public bool IsEmailVerified { get; set; }
-        /// <summary>
-        /// Last name. Can be <see langword="null"/>.
-        /// </summary>
-        [JsonProperty("last_name")]
-        public string LastName { get; set; }
         /// <summary>
         /// How many posts this user has liked.
         /// </summary>
@@ -85,6 +85,10 @@ namespace Patreon.Net.Models
         /// </summary>
         [JsonProperty("vanity")]
         public string Vanity { get; set; }
+        /// <summary>
+        /// Whether or not this user has an active campaign.
+        /// </summary>
+        public bool IsCreator { get; set; }
     }
 
     public class UserRelationships
